@@ -1,1 +1,296 @@
+/* style.css — Whack-a-Mole
+   Expected HTML structure (minimal):
+   <div class="game">
+     <header class="hud">
+       <div class="score">Score: <span class="score-value">0</span></div>
+       <div class="timer">Time: <span class="time-value">30</span>s</div>
+     </header>
+     <main class="board">  <!-- grid of holes -->
+       <button class="hole" data-index="0"><span class="mole"></span></button>
+       ...
+     </main>
+     <div class="controls">
+       <button class="btn start">Start</button>
+       <button class="btn reset">Reset</button>
+     </div>
+   </div>
+*/
+
+/* Root variables — tweak for theming */
+:root{
+  --bg: #f3f6f8;
+  --card: #ffffff;
+  --accent: #2b8aef;
+  --accent-2: #ffd166;
+  --hole: #3b3f45;      /* rim/shadow */
+  --dirt: #6b4f3a;      /* hole inner */
+  --mole: #8b5e3c;      /* mole color */
+  --mole-nose: #ff8b94;
+  --success: #28a745;
+  --danger: #e63946;
+  --text: #111827;
+  --glass: rgba(255,255,255,0.6);
+  --shadow: 0 6px 18px rgba(12,20,30,0.08);
+  --radius: 14px;
+  --gap: 12px;
+  --board-padding: 18px;
+  --font: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  :root{
+    --bg: #0b1220;
+    --card: #071025;
+    --accent: #4aa3ff;
+    --accent-2: #ffb86b;
+    --hole: #000000;
+    --dirt: #2f2016;
+    --mole: #b07a57;
+    --text: #e6eef6;
+    --glass: rgba(255,255,255,0.03);
+    --shadow: 0 6px 20px rgba(0,0,0,0.6);
+  }
+}
+
+/* Page / game container */
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html,body { height:100%; margin:0; font-family:var(--font); background:linear-gradient(180deg,var(--bg),#e9f2ff 60%); color:var(--text); -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; }
+.game{
+  max-width:900px;
+  margin:28px auto;
+  padding:20px;
+  background:linear-gradient(180deg,var(--card),var(--glass));
+  border-radius:18px;
+  box-shadow:var(--shadow);
+  display:flex;
+  flex-direction:column;
+  gap:16px;
+}
+
+/* HUD (score/timer) */
+.hud{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  align-items:center;
+  padding:8px 12px;
+  border-radius:12px;
+  background:transparent;
+}
+.hud .score,
+.hud .timer{
+  font-weight:600;
+  font-size:1.05rem;
+  letter-spacing:0.2px;
+  background:linear-gradient(90deg, rgba(255,255,255,0.02), rgba(0,0,0,0.02));
+  padding:8px 12px;
+  border-radius:10px;
+  border:1px solid rgba(0,0,0,0.04);
+}
+
+/* Board grid */
+.board{
+  padding:var(--board-padding);
+  display:grid;
+  gap:var(--gap);
+  justify-content:center;
+  align-items:center;
+  background:linear-gradient(180deg, transparent, rgba(0,0,0,0.02));
+  border-radius:12px;
+}
+
+/* Grid sizes for common hole counts */
+.board.cols-3 { grid-template-columns: repeat(3, minmax(84px, 1fr)); }
+.board.cols-4 { grid-template-columns: repeat(4, minmax(72px, 1fr)); }
+.board.cols-5 { grid-template-columns: repeat(5, minmax(60px, 1fr)); }
+
+/* Hole button (focusable for accessibility) */
+.hole{
+  appearance:none;
+  -webkit-appearance:none;
+  border:0;
+  background:transparent;
+  padding:0;
+  width:100%;
+  aspect-ratio:1/1; /* square holes */
+  display:inline-grid;
+  place-items:center;
+  cursor:pointer;
+  position:relative;
+  border-radius:12px;
+  transition:transform 160ms cubic-bezier(.2,.9,.3,1), filter 160ms;
+  outline: none;
+}
+.hole:active { transform: translateY(2px) scale(0.995); }
+
+/* Visual rim — outer ring of the hole */
+.hole::before{
+  content:"";
+  position:absolute;
+  inset:8%;
+  border-radius:50%;
+  background: radial-gradient(circle at 30% 25%, rgba(255,255,255,0.06), transparent 15%),
+              linear-gradient(180deg, rgba(0,0,0,0.06), rgba(0,0,0,0.02));
+  box-shadow: inset 0 8px 12px rgba(0,0,0,0.25);
+  z-index:1;
+  pointer-events:none;
+}
+
+/* Inner hole / dirt */
+.hole .dirt{
+  position:absolute;
+  inset:18%;
+  border-radius:50%;
+  background: radial-gradient(circle at 40% 30%, #82614f, #5f3f2b 45%, var(--dirt) 85%);
+  box-shadow: inset 0 10px 26px rgba(0,0,0,0.6);
+  z-index:2;
+  pointer-events:none;
+}
+
+/* Mole: initially hidden below the hole */
+.hole .mole{
+  position:relative;
+  z-index:3;
+  display:block;
+  width:70%;
+  height:70%;
+  transform: translateY(120%); /* hidden */
+  transition: transform 280ms cubic-bezier(.22,.9,.3,1);
+  will-change: transform;
+  border-radius:50%;
+  background: radial-gradient(circle at 35% 30%, #ffd6ba, var(--mole) 40%);
+  box-shadow: 0 8px 12px rgba(0,0,0,0.35);
+  display:grid;
+  place-items:center;
+  overflow:visible;
+  pointer-events:none; /* clicks handled by hole button */
+}
+
+/* Mole face detail (optional) */
+.hole .mole::after{
+  content:"";
+  width:22%;
+  height:22%;
+  border-radius:50%;
+  background:var(--mole-nose);
+  display:block;
+  transform:translateY(8%);
+  box-shadow: 0 2px 0 rgba(0,0,0,0.12) inset;
+}
+
+/* Visible state toggled by JS (add .up to hole when mole rises) */
+.hole.up .mole{
+  transform: translateY(0%);
+}
+
+/* Quick peep animation (tiny bounce on arrival) */
+.hole.up .mole {
+  animation:peep 420ms cubic-bezier(.16,.9,.2,1);
+}
+@keyframes peep{
+  0%   { transform: translateY(120%); }
+  70%  { transform: translateY(-6%); }
+  100% { transform: translateY(0%); }
+}
+
+/* Hit feedback — toggled by JS when player hits a mole */
+.hole.hit .mole{
+  transform: translateY(-40%) scale(0.92);
+  transition: transform 180ms ease-out;
+  filter: saturate(1.05) brightness(1.03);
+  box-shadow: 0 10px 22px rgba(0,0,0,0.5);
+}
+.hole.hit::after {
+  content:"+1";
+  position:absolute;
+  top:6%;
+  left:50%;
+  transform:translateX(-50%);
+  font-weight:700;
+  color:var(--success);
+  text-shadow: 0 2px 2px rgba(0,0,0,0.14);
+  animation: popUp 700ms ease-out forwards;
+  pointer-events:none;
+}
+@keyframes popUp{
+  0% { opacity:0; transform: translate(-50%, 8px) scale(0.98); }
+  20% { opacity:1; transform: translate(-50%, -6px) scale(1.06); }
+  100% { opacity:0; transform: translate(-50%, -24px) scale(1); }
+}
+
+/* Miss feedback when clicking empty hole */
+.hole.miss::after {
+  content:"Miss";
+  position:absolute;
+  top:6%;
+  left:50%;
+  transform:translateX(-50%);
+  font-weight:700;
+  color:var(--danger);
+  animation: popUp 700ms ease-out forwards;
+  pointer-events:none;
+}
+
+/* Controls */
+.controls { display:flex; gap:12px; justify-content:center; padding-bottom:6px; }
+.btn{
+  border:0;
+  padding:10px 14px;
+  border-radius:10px;
+  font-weight:700;
+  cursor:pointer;
+  background:linear-gradient(180deg,var(--accent), color-mix(in srgb, var(--accent) 80%, black 10%));
+  color:white;
+  box-shadow: 0 8px 18px rgba(43,138,239,0.14);
+  transition: transform 120ms ease, filter 120ms;
+}
+.btn:active { transform: translateY(2px) scale(.998); }
+.btn.secondary {
+  background: linear-gradient(180deg,var(--card), var(--glass));
+  color:var(--text);
+  border:1px solid rgba(0,0,0,0.06);
+}
+
+/* Accessibility focus ring */
+.hole:focus-visible, .btn:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent) 50%, transparent);
+  outline-offset: 2px;
+}
+
+/* Small-screen adjustments */
+@media (max-width:680px){
+  .game { margin:12px; padding:12px; border-radius:12px; }
+  .hud .score, .hud .timer { font-size:0.95rem; padding:6px 10px; }
+  .board.cols-4 { grid-template-columns: repeat(3, minmax(64px, 1fr)); } /* force smaller columns on tiny screens */
+  .board { gap:10px; --board-padding:12px; }
+}
+
+/* Larger-screen polish */
+@media (min-width:1200px){
+  .game { max-width:1100px; padding:28px; }
+  .hole .mole { width:72%; height:72%; }
+}
+
+/* Utility helper classes */
+.hidden { display:none !important; }
+.center { display:flex; align-items:center; justify-content:center; }
+
+/* Smooth transition for scoreboard updates (visual punch) */
+.score-value, .time-value {
+  display:inline-block;
+  min-width:40px;
+  text-align:right;
+  transition: transform 220ms cubic-bezier(.2,.8,.3,1);
+}
+.score-update { animation:scorePop 360ms ease; }
+@keyframes scorePop {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+
+/* Optional: debug outlines for development — remove in production */
+/* .hole { outline: 1px dashed rgba(0,0,0,0.04); } */
+
 
